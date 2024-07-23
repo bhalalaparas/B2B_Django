@@ -1,4 +1,5 @@
 import os
+from django.conf import settings
 from django.http import FileResponse,HttpResponse
 from django.shortcuts import render
 import pandas as pd
@@ -14,11 +15,14 @@ def upload_files(request):
         second_excel = request.FILES.get('second_excel')
 
         if first_excel and second_excel:
-            # Save files temporarily
-            first_excel_path = 'temp_first_excel.xlsx'
-            second_excel_path = 'temp_second_excel.xlsx'
-            processed_tally_path = 'processed_tally.xlsx'
-            processed_gst_path = 'processed_gst.xlsx'
+            uploads_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+            os.makedirs(uploads_dir, exist_ok=True)
+
+            # Save files temporarily in the 'uploads' directory
+            first_excel_path = os.path.join(uploads_dir, 'temp_first_excel.xlsx')
+            second_excel_path = os.path.join(uploads_dir, 'temp_second_excel.xlsx')
+            processed_tally_path = os.path.join(uploads_dir, 'processed_tally.xlsx')
+            processed_gst_path = os.path.join(uploads_dir, 'processed_gst.xlsx')
 
             with open(first_excel_path, 'wb+') as destination:
                 for chunk in first_excel.chunks():
