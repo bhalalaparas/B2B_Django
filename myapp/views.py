@@ -5,6 +5,7 @@ from django.shortcuts import render
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
+from datetime import datetime
 
 def index(request):
     return render(request, 'main.html')
@@ -15,14 +16,21 @@ def upload_files(request):
         second_excel = request.FILES.get('second_excel')
 
         if first_excel and second_excel:
+
+            current_timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+
             uploads_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
             os.makedirs(uploads_dir, exist_ok=True)
 
-            # Save files temporarily in the 'uploads' directory
-            first_excel_path = os.path.join(uploads_dir, 'temp_first_excel.xlsx')
-            second_excel_path = os.path.join(uploads_dir, 'temp_second_excel.xlsx')
-            processed_tally_path = os.path.join(uploads_dir, 'processed_tally.xlsx')
-            processed_gst_path = os.path.join(uploads_dir, 'processed_gst.xlsx')
+            first_excel_filename = f"{current_timestamp}_first_excel.xlsx"
+            second_excel_filename = f"{current_timestamp}_second_excel.xlsx"
+            processed_tally_filename = f"{current_timestamp}_processed_tally.xlsx"
+            processed_gst_filename = f"{current_timestamp}_processed_gst.xlsx"
+
+            first_excel_path = os.path.join(uploads_dir, first_excel_filename)
+            second_excel_path = os.path.join(uploads_dir, second_excel_filename)
+            processed_tally_path = os.path.join(uploads_dir, processed_tally_filename)
+            processed_gst_path = os.path.join(uploads_dir, processed_gst_filename)
 
             with open(first_excel_path, 'wb+') as destination:
                 for chunk in first_excel.chunks():
@@ -137,7 +145,7 @@ def color_gst(gst_df, gst_op_path):
     fill_red = PatternFill(start_color="ff8566", end_color="ff8566", fill_type="solid")
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        match_status = row[-1]  # Match Status column
+        match_status = row[-4]  # Match Status column
         if match_status.value == 'No':
             for cell in row:
                 cell.fill = fill_red     
