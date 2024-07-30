@@ -55,6 +55,26 @@ def process_excels(GSTR_file_name, Tally_file_name, processed_tally_path, proces
     gst_df = pd.read_excel(GSTR_file_name, sheet_name='B2B', header=5)
     tally_df = pd.read_excel(Tally_file_name, sheet_name='GSTR-3B - Voucher Register', header=8)
 
+    all_tally_df = pd.read_excel(Tally_file_name)
+    gst_df = pd.read_excel(GSTR_file_name, sheet_name='B2B', header=5)
+
+    # Function to check if a string matches the date format 'dd-MMM-yy'
+    def is_date_format(s):
+        try:
+            pd.to_datetime(s, format='%d-%b-%y')
+            return True
+        except ValueError:
+            return False
+
+    start_row_id = all_tally_df.index[all_tally_df.iloc[:, 0].apply(is_date_format)].tolist()[0]    
+
+
+    new_columns_name = all_tally_df.iloc[start_row_id - 1].tolist()
+
+    # print(tally_df.iloc[start_row_id:])
+    tally_df = all_tally_df.iloc[start_row_id:].reset_index(drop=True)
+    tally_df.columns = new_columns_name
+
     gst_df = gst_df.iloc[:, [1, 2, 4, 5, 9, 10, 11, 12]]
     gst_df = gst_df.rename(columns={"Unnamed: 1": 'Trade/Legal name', 'Unnamed: 9': 'Taxable Value (₹)'})
 
@@ -128,29 +148,56 @@ def color_tally(tally_df, tally_op_path):
     tally_df.to_excel(tally_op_path, index=False)
     wb = load_workbook(tally_op_path)
     ws = wb.active
-    fill_red = PatternFill(start_color="ff8566", end_color="ff8566", fill_type="solid")
+    fill_green = PatternFill(start_color="80ff80", end_color="80ff80", fill_type="solid")
+    fill_red = PatternFill(start_color="cc0000", end_color="cc0000", fill_type="solid")
+    fill_yellow = PatternFill(start_color="ffff1a", end_color="ffff1a", fill_type="solid")
+     #ff8566
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        match_status = row[-1]  # Match Status column
-        if match_status.value == 'No':
+        Match_Status = row[15]
+        Taxable_Amount_Difference = row[12]
+        Tax_Amount_Difference = row[13]
+        Total_Value_Difference = row[14]        
+        if Match_Status.value=='No':
             for cell in row:
-                cell.fill = fill_red     
+                cell.fill = fill_red    
+        else:
+            # if float(Taxable_Amount_Difference.value) + float(Tax_Amount_Difference.value) + float(Total_Value_Difference.value) >10:
+                for cell in row:
+                    cell.fill = fill_yellow                  
 
-    wb.save(tally_op_path)   
+    wb.save(tally_op_path)       
+
+# color_tally(tally_df)   
 
 def color_gst(gst_df, gst_op_path): 
     gst_df.to_excel(gst_op_path, index=False)
     wb = load_workbook(gst_op_path)
     ws = wb.active
-    fill_red = PatternFill(start_color="ff8566", end_color="ff8566", fill_type="solid")
+    fill_green = PatternFill(start_color="80ff80", end_color="80ff80", fill_type="solid")
+    fill_red = PatternFill(start_color="cc0000", end_color="cc0000", fill_type="solid")
+    fill_yellow = PatternFill(start_color="ffff1a", end_color="ffff1a", fill_type="solid")
+     #ff8566
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        match_status = row[-4]  # Match Status column
-        if match_status.value == 'No':
+        Match_Status = row[-4]
+        Taxable_Amount_Difference = row[10]
+        Tax_Amount_Difference = row[11]
+        Total_Value_Difference = row[12]
+        if Match_Status.value=='No':
             for cell in row:
                 cell.fill = fill_red     
+        else:
+            # if float(Taxable_Amount_Difference.value) + float(Tax_Amount_Difference.value) + float(Total_Value_Difference.value) >10:
+            for cell in row:
+                cell.fill = fill_yellow 
 
-    wb.save(gst_op_path)
+
+    wb.save(gst_op_path)       
+# gst_df = gst_groupby_sum_df[['Trade/Legal name', 'Invoice number', 'Invoice Date', 'Invoice Value(₹)', 'Taxable Value (₹)',	'Integrated Tax(₹)', 'Central Tax(₹)', 'State/UT Tax(₹)', 'GST_sheet_Tax', 'Total_value', 'Taxable_Amount_Difference', 'Tax_Amount_Difference', 'Total_Value_Difference', 'Match_Status']]
+
+
+# color_gst(gst_df)
 
 def download_file(request, file_path):
     file_path = os.path.abspath(file_path)
