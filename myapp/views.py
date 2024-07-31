@@ -10,6 +10,12 @@ from datetime import datetime
 def index(request):
     return render(request, 'main.html')
 
+def extract_company_name(excel_path):
+    wb = load_workbook(excel_path)
+    ws = wb.active
+    company_name = ws['A1'].value
+    return company_name.strip().replace(" ", "_")
+
 def upload_files(request):
     if request.method == 'POST':
         first_excel = request.FILES.get('first_excel')
@@ -22,22 +28,29 @@ def upload_files(request):
             uploads_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
             os.makedirs(uploads_dir, exist_ok=True)
 
-            first_excel_filename = f"{current_timestamp}_first_excel.xlsx"
             second_excel_filename = f"{current_timestamp}_second_excel.xlsx"
-            processed_tally_filename = f"{current_timestamp}_processed_tally.xlsx"
-            processed_gst_filename = f"{current_timestamp}_processed_gst.xlsx"
-
-            first_excel_path = os.path.join(uploads_dir, first_excel_filename)
             second_excel_path = os.path.join(uploads_dir, second_excel_filename)
-            processed_tally_path = os.path.join(uploads_dir, processed_tally_filename)
-            processed_gst_path = os.path.join(uploads_dir, processed_gst_filename)
-
-            with open(first_excel_path, 'wb+') as destination:
-                for chunk in first_excel.chunks():
-                    destination.write(chunk)
             with open(second_excel_path, 'wb+') as destination:
                 for chunk in second_excel.chunks():
                     destination.write(chunk)
+            
+            # Extract company name from the saved second Excel file
+            company_name = extract_company_name(second_excel_path)
+
+            # Prepare filenames for the first file and processed files
+            first_excel_filename = f"{current_timestamp}_first_excel.xlsx"
+            processed_tally_filename = f"{current_timestamp}_{company_name}_processed_tally.xlsx"
+            processed_gst_filename = f"{current_timestamp}_{company_name}_processed_gst.xlsx"
+
+            first_excel_path = os.path.join(uploads_dir, first_excel_filename)
+            processed_tally_path = os.path.join(uploads_dir, processed_tally_filename)
+            processed_gst_path = os.path.join(uploads_dir, processed_gst_filename)
+
+            # Save the first file to disk
+            with open(first_excel_path, 'wb+') as destination:
+                for chunk in first_excel.chunks():
+                    destination.write(chunk)
+
 
             # Process files
             process_excels(first_excel_path, second_excel_path, processed_tally_path, processed_gst_path)
@@ -50,6 +63,7 @@ def upload_files(request):
             return HttpResponse("Please upload both Excel files.")
 
     return render(request, 'main.html')
+
 
 def process_excels(GSTR_file_name, Tally_file_name, processed_tally_path, processed_gst_path):
     gst_df = pd.read_excel(GSTR_file_name, sheet_name='B2B', header=5)
@@ -162,7 +176,7 @@ def color_tally(tally_df, tally_op_path):
             for cell in row:
                 cell.fill = fill_red    
         else:
-            # if float(Taxable_Amount_Difference.value) + float(Tax_Amount_Difference.value) + float(Total_Value_Difference.value) >10:
+            if float(Taxable_Amount_Difference.value) + float(Tax_Amount_Difference.value) + float(Total_Value_Difference.value) >10:
                 for cell in row:
                     cell.fill = fill_yellow                  
 
@@ -171,27 +185,36 @@ def color_tally(tally_df, tally_op_path):
 # color_tally(tally_df)   
 
 def color_gst(gst_df, gst_op_path): 
+    # Select only the specified columns
+    selected_columns = [
+        'Trade/Legal name', 'Invoice number', 'Invoice Date', 'Invoice Value(₹)', 'Taxable Value (₹)',
+        'Integrated Tax(₹)', 'Central Tax(₹)', 'State/UT Tax(₹)', 'GST_sheet_Tax', 'Total_value',
+        'Taxable Amount Difference', 'Tax Amount Difference', 'Total Value Difference', 'Match Status'
+    ]
+    gst_df = gst_df[selected_columns]
+
+    print("Selected columns for GST DF:")
+    print(gst_df.columns)
+
     gst_df.to_excel(gst_op_path, index=False)
     wb = load_workbook(gst_op_path)
     ws = wb.active
     fill_green = PatternFill(start_color="80ff80", end_color="80ff80", fill_type="solid")
     fill_red = PatternFill(start_color="cc0000", end_color="cc0000", fill_type="solid")
     fill_yellow = PatternFill(start_color="ffff1a", end_color="ffff1a", fill_type="solid")
-     #ff8566
 
     for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        Match_Status = row[-4]
-        Taxable_Amount_Difference = row[10]
-        Tax_Amount_Difference = row[11]
-        Total_Value_Difference = row[12]
-        if Match_Status.value=='No':
+        Match_Status = row[-1]
+        Taxable_Amount_Difference = row[-4]
+        Tax_Amount_Difference = row[-3] 
+        Total_Value_Difference = row[-2] 
+        if Match_Status.value == 'No':
             for cell in row:
                 cell.fill = fill_red     
         else:
-            # if float(Taxable_Amount_Difference.value) + float(Tax_Amount_Difference.value) + float(Total_Value_Difference.value) >10:
-            for cell in row:
-                cell.fill = fill_yellow 
-
+            if float(Taxable_Amount_Difference.value) + float(Tax_Amount_Difference.value) + float(Total_Value_Difference.value) > 10:
+                for cell in row:
+                    cell.fill = fill_yellow 
 
     wb.save(gst_op_path)       
 # gst_df = gst_groupby_sum_df[['Trade/Legal name', 'Invoice number', 'Invoice Date', 'Invoice Value(₹)', 'Taxable Value (₹)',	'Integrated Tax(₹)', 'Central Tax(₹)', 'State/UT Tax(₹)', 'GST_sheet_Tax', 'Total_value', 'Taxable_Amount_Difference', 'Tax_Amount_Difference', 'Total_Value_Difference', 'Match_Status']]
