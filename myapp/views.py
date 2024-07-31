@@ -193,8 +193,8 @@ def color_gst(gst_df, gst_op_path):
     ]
     gst_df = gst_df[selected_columns]
 
-    print("Selected columns for GST DF:")
-    print(gst_df.columns)
+    # print("Selected columns for GST DF:")
+    # print(gst_df.columns)
 
     gst_df.to_excel(gst_op_path, index=False)
     wb = load_workbook(gst_op_path)
